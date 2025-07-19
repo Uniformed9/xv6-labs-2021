@@ -44,7 +44,7 @@ testmem() {
   uint64 n = countfree();
   
   sinfo(&info);
-
+  
   if (info.freemem!= n) {
     printf("FAIL: free mem %d (bytes) instead of %d\n", info.freemem, n);
     exit(1);

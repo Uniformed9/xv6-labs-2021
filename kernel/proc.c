@@ -106,7 +106,8 @@ allocproc(void)
 
 found:
   p->pid = allocpid();
-
+  
+  p->trace=0;
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
@@ -275,6 +276,8 @@ fork(void)
   }
   np->sz = p->sz;
 
+  np->trace=p->trace;
+
   np->parent = p;
 
   // copy saved user registers.
@@ -295,6 +298,7 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  
   release(&np->lock);
 
   return pid;
@@ -692,4 +696,17 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64 proc_num(void){
+    struct proc *p;
+  uint64 count=0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    
+    if(p->state != UNUSED) {
+      count++;
+    } 
+    
+  }
+  return count;
 }
