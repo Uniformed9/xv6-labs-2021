@@ -112,7 +112,10 @@ found:
     release(&p->lock);
     return 0;
   }
-
+  p->inhandler=0;
+  memset(p->trapframe, 0, sizeof(*p->trapframe));
+  p->interval=0;
+  p->ticks=0;
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -120,7 +123,7 @@ found:
     release(&p->lock);
     return 0;
   }
-
+  
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -696,4 +699,18 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+uint64 sigalarm(int n,uint64 fn){
+  struct proc *p ;
+  uint64  pa0;
+  p= myproc();
+  // pa0=walkaddr(p->pagetable,fn);
+  // if(pa0==0){
+  //    printf("sigalarm: invalid handler address\n");
+  //    return -1;
+  // }
+  p->handler=fn;
+  p->interval=n;
+  p->ticks=0;
+  return 0;
 }

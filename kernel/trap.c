@@ -16,15 +16,13 @@ void kernelvec();
 
 extern int devintr();
 
-void
-trapinit(void)
+void trapinit(void)
 {
   initlock(&tickslock, "time");
 }
 
 // set up to take exceptions and traps while in the kernel.
-void
-trapinithart(void)
+void trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
 }
@@ -77,8 +75,28 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2){
+    
+    if (p->interval > 0&&p->inhandler==0)
+    {
+      p->ticks++;
+      //这里要试一下>=和==的区别，不设置重入
+      if (p->ticks >= p->interval)
+      {
+
+        // 跳转到p->handler执行一下
+        // 这里已经保存了寄存器trap
+        // 已经保存在p->trapframe
+        p->trapframe_backup=*(p->trapframe);
+        p->trapframe->epc=p->handler;
+        p->inhandler=1;
+        p->ticks = 0;
+   
+      }
+    }
     yield();
+  }
+
 
   usertrapret();
 }
@@ -128,29 +146,30 @@ usertrapret(void)
   ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
 }
 
+
 // interrupts and exceptions from kernel code go here via kernelvec,
 // on whatever the current kernel stack is.
-void 
-kerneltrap()
+void kerneltrap()
 {
   int which_dev = 0;
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
-  
-  if((sstatus & SSTATUS_SPP) == 0)
+
+  if ((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
-  if(intr_get() != 0)
+  if (intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 
-  if((which_dev = devintr()) == 0){
+  if ((which_dev = devintr()) == 0)
+  {
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
     panic("kerneltrap");
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();
 
   // the yield() may have caused some traps to occur,
@@ -159,8 +178,7 @@ kerneltrap()
   w_sstatus(sstatus);
 }
 
-void
-clockintr()
+void clockintr()
 {
   acquire(&tickslock);
   ticks++;
@@ -173,48 +191,58 @@ clockintr()
 // returns 2 if timer interrupt,
 // 1 if other device,
 // 0 if not recognized.
-int
-devintr()
+int devintr()
 {
   uint64 scause = r_scause();
 
-  if((scause & 0x8000000000000000L) &&
-     (scause & 0xff) == 9){
+  if ((scause & 0x8000000000000000L) &&
+      (scause & 0xff) == 9)
+  {
     // this is a supervisor external interrupt, via PLIC.
 
     // irq indicates which device interrupted.
     int irq = plic_claim();
 
-    if(irq == UART0_IRQ){
+    if (irq == UART0_IRQ)
+    {
       uartintr();
-    } else if(irq == VIRTIO0_IRQ){
+    }
+    else if (irq == VIRTIO0_IRQ)
+    {
       virtio_disk_intr();
-    } else if(irq){
+    }
+    else if (irq)
+    {
       printf("unexpected interrupt irq=%d\n", irq);
     }
 
     // the PLIC allows each device to raise at most one
     // interrupt at a time; tell the PLIC the device is
     // now allowed to interrupt again.
-    if(irq)
+    if (irq)
       plic_complete(irq);
 
     return 1;
-  } else if(scause == 0x8000000000000001L){
+  }
+  else if (scause == 0x8000000000000001L)
+  {
     // software interrupt from a machine-mode timer interrupt,
     // forwarded by timervec in kernelvec.S.
 
-    if(cpuid() == 0){
+    if (cpuid() == 0)
+    {
+      // 时间中断的话加时间
       clockintr();
     }
-    
+
     // acknowledge the software interrupt by clearing
     // the SSIP bit in sip.
     w_sip(r_sip() & ~2);
 
     return 2;
-  } else {
+  }
+  else
+  {
     return 0;
   }
 }
-
