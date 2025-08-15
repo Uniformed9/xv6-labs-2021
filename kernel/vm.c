@@ -75,8 +75,6 @@ kvminit_user(void)
   // the highest virtual address in the kernel.
   kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 
-  // map kernel stacks
-   
   return kpgtbl;
 }
 // Initialize the one kernel_pagetable
@@ -314,7 +312,8 @@ void freewalk(pagetable_t pagetable)
     }
     else if (pte & PTE_V)
     {
-      //
+      //这里出问题了
+      vmprint(pagetable);
       panic("freewalk: leaf");
     }
   }
@@ -512,5 +511,4 @@ void vmprint(pagetable_t pagetable)
       }
     }
   }
-
 }

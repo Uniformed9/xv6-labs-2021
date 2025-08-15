@@ -160,8 +160,10 @@ found:
   }
   //映射内核栈
   
-  va = p->kstack;
+  // va = p->kstack;
+  va=KSTACK((int)(p - proc));
   pte=walk(kernel_pagetable, va, 0);
+  pa=PTE2PA(*pte);
   if (pte == 0)
   {
     panic("allocproc: kernelpage walk");
@@ -187,8 +189,10 @@ freeproc(struct proc *p)
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   if(p->kpagetable)
-    proc_freekpagetable(p->kpagetable);
+    proc_freekpagetable(p->kpagetable,p->kstack);
   p->pagetable = 0;
+  //?
+  p->kpagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -238,12 +242,16 @@ proc_pagetable(struct proc *p)
 // physical memory it refers to.
 void proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
+  
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
 }
-void proc_freekpagetable(pagetable_t pagetable)
-{ //这些系统有关的去除映射
+void proc_freekpagetable(pagetable_t pagetable,uint64 kstack)
+{ 
+  
+  //这些系统有关的去除映射
+  
   uvmunmap(pagetable, UART0, 1, 0);
   uvmunmap(pagetable, VIRTIO0, 1, 0);
   uvmunmap(pagetable, PLIC, 0x400000 / PGSIZE, 0);
@@ -251,9 +259,7 @@ void proc_freekpagetable(pagetable_t pagetable)
   uvmunmap(pagetable, (uint64)etext, (PHYSTOP - (uint64)etext)/PGSIZE, 0);
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   //栈也要去除映射
-  struct  proc *p=myproc();
-  uint64 va = KSTACK((int)(p - proc));
-  uvmunmap(p->kpagetable, va, 1, 0);
+  uvmunmap(pagetable, kstack, 1, 0);
   freewalk(pagetable);
 }
 // a user program that calls exec("/init")
@@ -516,6 +522,7 @@ scheduler(void)
         // 更改
         w_satp(MAKE_SATP(p->kpagetable));
         sfence_vma();
+        //
         swtch(&c->context, &p->context);
 
         // Process is done running for now.

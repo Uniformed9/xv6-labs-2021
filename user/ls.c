@@ -81,5 +81,6 @@ main(int argc, char *argv[])
   }
   for(i=1; i<argc; i++)
     ls(argv[i]);
+  printf("\n");
   exit(0);
 }
