@@ -31,6 +31,53 @@ struct spinlock wait_lock;
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
+
+pagetable_t
+kvminit_user(void)
+{
+  pagetable_t kpgtbl;
+  struct proc *p;
+
+  kpgtbl = (pagetable_t)kalloc();
+  if (kpgtbl == 0)
+    return 0;
+  memset(kpgtbl, 0, PGSIZE);
+
+  // uart registers
+  kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // PLIC
+  kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  kvmmap(kpgtbl, KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+
+
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+
+    uint64 va = KSTACK((int)(p - proc));
+    pte_t *pte = walk(kernel_pagetable, va, 0);
+    if (pte == 0)
+    {
+      panic("allocproc: kernelpage walk");
+    }
+    uint64 pa = PTE2PA(*pte);
+    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  }
+  return kpgtbl;
+}
+
 void proc_mapstacks(pagetable_t kpgtbl)
 {
   struct proc *p;
@@ -109,10 +156,9 @@ static struct proc *
 allocproc(void)
 {
   struct proc *p;
-  uint64 va;
-  uint64 pa;
-  pte_t *pte;
-
+  // uint64 va;
+  // uint64 pa;
+  // pte_t *pte;
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
@@ -150,7 +196,7 @@ found:
   }
   // kernel page table
   p->kpagetable = kvminit_user();
-
+  //p->kpagetable = proc_kpagetable(p);
   if (p->kpagetable == 0)
   {
 
@@ -160,15 +206,16 @@ found:
   }
   //映射内核栈
   
-  // va = p->kstack;
-  va=KSTACK((int)(p - proc));
-  pte=walk(kernel_pagetable, va, 0);
-  pa=PTE2PA(*pte);
-  if (pte == 0)
-  {
-    panic("allocproc: kernelpage walk");
-  }
-  kvmmap(p->kpagetable, va, pa, PGSIZE, PTE_R | PTE_W);
+  //  va = p->kstack;
+  // //va=KSTACK((int)(p - proc));
+  // pte=walk(kernel_pagetable, va, 0);
+  // pa=PTE2PA(*pte);
+  // if (pte == 0)
+  // {
+  //   panic("allocproc: kernelpage walk");
+  // }
+  // kvmmap(p->kpagetable, va, pa, PGSIZE, PTE_R | PTE_W);
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -238,6 +285,48 @@ proc_pagetable(struct proc *p)
   return pagetable;
 }
 
+pagetable_t
+proc_kpagetable(struct proc *p)
+{
+  pagetable_t kpgtbl;
+  uint64 va;
+  uint64 pa;
+  pte_t *pte;
+
+  kpgtbl = (pagetable_t)kalloc();
+  memset(kpgtbl, 0, PGSIZE);
+
+  // uart registers
+  kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // PLIC
+  kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  kvmmap(kpgtbl, KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  //映射内核栈
+  va = p->kstack;
+  //va=KSTACK((int)(p - proc));
+  pte=walk(kernel_pagetable, va, 0);
+  pa=PTE2PA(*pte);
+  if (pte == 0)
+  {
+    panic("allocproc: kernelpage walk");
+  }
+  kvmmap(p->kpagetable, va, pa, PGSIZE, PTE_R | PTE_W);
+  
+  return kpgtbl;
+}
 // Free a process's page table, and free the
 // physical memory it refers to.
 void proc_freepagetable(pagetable_t pagetable, uint64 sz)
@@ -259,7 +348,10 @@ void proc_freekpagetable(pagetable_t pagetable,uint64 kstack)
   uvmunmap(pagetable, (uint64)etext, (PHYSTOP - (uint64)etext)/PGSIZE, 0);
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   //栈也要去除映射
-  uvmunmap(pagetable, kstack, 1, 0);
+  if(kstack!=0){
+    uvmunmap(pagetable, kstack, 1, 0);
+  }
+  
   freewalk(pagetable);
 }
 // a user program that calls exec("/init")
