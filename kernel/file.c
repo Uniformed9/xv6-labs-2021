@@ -94,7 +94,7 @@ filestat(struct file *f, uint64 addr)
     ilock(f->ip);
     stati(f->ip, &st);
     iunlock(f->ip);
-    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st),p->sz) < 0)
       return -1;
     return 0;
   }
@@ -134,6 +134,7 @@ fileread(struct file *f, uint64 addr, int n)
 int
 filewrite(struct file *f, uint64 addr, int n)
 {
+  //处理这个系统调用
   int r, ret = 0;
 
   if(f->writable == 0)
