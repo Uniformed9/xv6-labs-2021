@@ -46,9 +46,16 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = myproc()->sz;
-  if(growproc(n) < 0)
+  //这里的n可能为负数
+   addr = myproc()->sz;
+  if(n>0){
+     myproc()->sz=myproc()->sz+n;
+  }else{
+   if(growproc(n) < 0)
     return -1;
+  }
+  //if(growproc(n) < 0)
+  //   return -1;
   return addr;
 }
 

@@ -181,10 +181,13 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
+    //还没有map呢
+      continue;
+      //panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0)
-      panic("uvmunmap: not mapped");
-    if(PTE_FLAGS(*pte) == PTE_V)
+      //panic("uvmunmap: not mapped");
+      continue;
+      if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
     if(do_free){
       uint64 pa = PTE2PA(*pte);
@@ -315,9 +318,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      continue;
+      //panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      continue;
+      //panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -438,5 +443,40 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return 0;
   } else {
     return -1;
+  }
+}
+
+void vmprint(pagetable_t pagetable)
+{
+
+  // 打印
+  pte_t pte1;
+  pte_t pte2;
+  pte_t pte3;
+
+  printf("page table %p\n", pagetable);
+  for (int i = 0; i < 512; i++)
+  {
+    pte1 = pagetable[i];
+    if (pte1 & PTE_V)
+    {
+      printf("..%d: pte %p pa %p\n", i, pte1, PTE2PA(pte1));
+      for (int j = 0; j < 512; j++)
+      {
+        pte2 = ((pagetable_t)PTE2PA(pte1))[j];
+        if (pte2 & PTE_V)
+        {
+          printf(".. ..%d: pte %p pa %p\n", j, pte2, PTE2PA(pte2));
+          for (int k = 0; k < 512; k++)
+          {
+            pte3 = ((pagetable_t)PTE2PA(pte2))[k];
+            if (pte3 & PTE_V)
+            {
+              printf(".. .. ..%d: pte %p pa %p\n", k, pte3, PTE2PA(pte3));
+            }
+          }
+        }
+      }
+    }
   }
 }
