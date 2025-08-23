@@ -70,12 +70,43 @@ void usertrap(void)
   }
   else if (r_scause() == 13 || r_scause() == 15)
   {
-    //
-    // 看下是不是栈
+    //先前的做法
+    // uint64  va = r_stval();
+    //    pte_t *pte;
+    // pte = walk(p->pagetable, va,0);
+    // printf("pte:%p\n",pte);
+    // if (r_stval() >= p->sz)
+    //   {
+    //     p->killed = 1;
+    //   }
+    //   else
+    //   {
+    //     printf("page fault%p\n",va);
+    //     uint64 ka = (uint64)kalloc();
+    //     if (ka == 0)
+    //     {
+    //       p->killed = 1;
+    //     }
+    //     else
+    //     {
+    //       memset((void *)ka, 0, PGSIZE);
+    //       va = PGROUNDDOWN(va);
+    //       //只有未分配才能mappages,先判断是否分配
+    //       if (mappages(p->pagetable, va, PGSIZE, ka, PTE_W | PTE_U | PTE_R | PTE_X) != 0)
+    //       {
+    //         kfree((void *)ka);
+    //         p->killed = 1;
+    //       }
+    //     }
+    //   }
+    // 处理溢出栈的做法
     uint64  va = r_stval();
     pte_t *pte;
+    if(va>=MAXVA){
+      goto fail;
+    }
     pte = walk(p->pagetable, va,0);
-    if(pte==0){
+    if(pte==0||((*pte & PTE_V) == 0)){
       //没有这个页表项目
       if (r_stval() >= p->sz)
       {
@@ -103,6 +134,7 @@ void usertrap(void)
       }
     }else
     {
+    fail:
       printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
       printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
       p->killed = 1;

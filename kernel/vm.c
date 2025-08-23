@@ -71,17 +71,6 @@ void kvminithart()
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
-  // struct proc *p = myproc();
-  // if (va < p->sz)
-  // {
-  //   // 分配一下
-
-  //   // printf("page fault%p\n",va);
-  //   if (lazyalloc(va, pagetable) < 0)
-  //   {
-  //     return 0;
-  //   }
-  // }
   if (va >= MAXVA)
     panic("walk");
   if (va == 0x1300)
