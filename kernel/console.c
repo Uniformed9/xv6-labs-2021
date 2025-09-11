@@ -133,6 +133,9 @@ consoleread(int user_dst, uint64 dst, int n)
 // wake up consoleread() if a whole line has arrived.
 //
 void
+
+
+
 consoleintr(int c)
 {
   acquire(&cons.lock);
