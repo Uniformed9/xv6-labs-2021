@@ -200,7 +200,8 @@ ialloc(uint dev, short type)
   struct dinode *dip;
 
   for(inum = 1; inum < sb.ninodes; inum++){
-    bp = bread(dev, IBLOCK(inum, sb));
+    uint blockno=IBLOCK(inum, sb);
+    bp = bread(dev, blockno);
     dip = (struct dinode*)bp->data + inum%IPB;
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
@@ -632,8 +633,12 @@ namex(char *path, int nameiparent, char *name)
 
   if(*path == '/')
     ip = iget(ROOTDEV, ROOTINO);
-  else
-    ip = idup(myproc()->cwd);
+  else{
+    struct proc* proc;
+    proc=myproc();
+    ip = idup(proc->cwd);
+  }
+    
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
