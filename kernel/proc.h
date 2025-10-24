@@ -17,7 +17,18 @@ struct context {
   uint64 s10;
   uint64 s11;
 };
+struct Vma{
+  int used;
+  uint64 va;//va是页对齐
+  int length;//这个不是页对齐的
+   int offset;//offset是页对齐
+  int prot;
+  
+  struct file* fd;
+  int flags;
+ 
 
+};
 // Per-CPU state.
 struct cpu {
   struct proc *proc;          // The process running on this cpu, or null.
@@ -105,4 +116,6 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  //mmap
+  struct Vma vma[16];
 };

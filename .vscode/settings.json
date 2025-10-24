@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "file.h": "c",
+        "random": "c",
+        "string_view": "c",
+        "tuple": "c"
+    }
+}

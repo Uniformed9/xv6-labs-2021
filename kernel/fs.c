@@ -336,7 +336,7 @@ iput(struct inode *ip)
 
   if(ip->ref == 1 && ip->valid && ip->nlink == 0){
     // inode has no links and no other references: truncate and free.
-
+    //释放
     // ip->ref == 1 means no other process can have ip locked,
     // so this acquiresleep() won't block (or deadlock).
     acquiresleep(&ip->lock);
@@ -475,6 +475,8 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
   }
   return tot;
 }
+
+
 
 // Write data to inode.
 // Caller must hold ip->lock.

@@ -93,8 +93,8 @@ mmap_test(void)
   makefile(f);
   if ((fd = open(f, O_RDONLY)) == -1)
     err("open");
-
   printf("test mmap f\n");
+  
   //
   // this call to mmap() asks the kernel to map the content
   // of open file fd into the address space. the first
@@ -110,13 +110,17 @@ mmap_test(void)
   // of the file to be mapped. the last argument is the starting
   // offset in the file.
   //
+
   char *p = mmap(0, PGSIZE*2, PROT_READ, MAP_PRIVATE, fd, 0);
+
   if (p == MAP_FAILED)
     err("mmap (1)");
+  //printf("--------------\n");
   _v1(p);
+  //printf("--------------\n");
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (1)");
-
+ 
   printf("test mmap f: OK\n");
     
   printf("test mmap private\n");
@@ -167,7 +171,7 @@ mmap_test(void)
   // write the mapped memory.
   for (i = 0; i < PGSIZE*2; i++)
     p[i] = 'Z';
-
+ 
   // unmap just the first two of three pages of mapped memory.
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (3)");
